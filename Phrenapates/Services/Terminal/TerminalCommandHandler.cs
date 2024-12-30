@@ -1,8 +1,8 @@
 using Phrenapates.Commands;
 using Phrenapates.Services.Irc;
-
 using Plana.Database;
-
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 
 namespace Phrenapates.Services.Terminal
 {
@@ -11,13 +11,19 @@ namespace Phrenapates.Services.Terminal
         private readonly ILogger<TerminalCommandHandler> _logger;
         private readonly SCHALEContext _context;
         private readonly ExcelTableService _excelTableService;
+        private readonly IServer _server;
         private IrcConnection _terminalConnection;
 
-        public TerminalCommandHandler(ILogger<TerminalCommandHandler> logger, SCHALEContext context, ExcelTableService excelTableService)
+        public TerminalCommandHandler(
+            ILogger<TerminalCommandHandler> logger, 
+            SCHALEContext context, 
+            ExcelTableService excelTableService,
+            IServer server)
         {
             _logger = logger;
             _context = context;
             _excelTableService = excelTableService;
+            _server = server;
 
             _terminalConnection = new IrcConnection
             {
@@ -28,8 +34,16 @@ namespace Phrenapates.Services.Terminal
                 TcpClient = null!
             };
         }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            while (!stoppingToken.IsCancellationRequested && 
+                   _server.Features.Get<IServerAddressesFeature>()?.Addresses.Count == 0)
+            {
+                await Task.Delay(100, stoppingToken);
+            }
+            await Task.Delay(500, stoppingToken);
+
             _logger.LogInformation("Terminal command handler started. Type /help for available commands.");
 
             while (!stoppingToken.IsCancellationRequested)

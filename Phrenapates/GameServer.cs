@@ -69,7 +69,6 @@ namespace Phrenapates
                 // Load Commands
                 CommandFactory.LoadCommands();
 
-
                 var builder = WebApplication.CreateBuilder(args);
 
                 builder.Services.Configure<KestrelServerOptions>(op =>
@@ -85,7 +84,6 @@ namespace Phrenapates
                 builder.Services.AddExcelTableService();
                 builder.Services.AddIrcService();
                 builder.Services.AddSharedDataCache();
-                builder.Services.AddTerminalCommandHandler();
 
                 // Add all Handler Groups
                 var handlerGroups = Assembly
@@ -94,7 +92,12 @@ namespace Phrenapates
                     .Where(t => t.IsSubclassOf(typeof(ProtocolHandlerBase)));
 
                 foreach (var handlerGroup in handlerGroups)
+                {
                     builder.Services.AddProtocolHandlerGroupByType(handlerGroup);
+                }
+
+                // Add terminal command handler as a hosted service
+                builder.Services.AddTerminalCommandHandler();
 
                 var app = builder.Build();
 
@@ -108,10 +111,10 @@ namespace Phrenapates
                 // Configure the HTTP request pipeline.
                 app.UseAuthorization();
                 app.UseSerilogRequestLogging();
-
                 app.MapControllers();
 
-                app.Run();
+                // Start the application
+                await app.RunAsync();
             }
             catch (Exception ex)
             {
