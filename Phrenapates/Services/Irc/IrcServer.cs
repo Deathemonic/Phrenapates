@@ -47,9 +47,9 @@ namespace Phrenapates.Services.Irc
             using var reader = new StreamReader(tcpClient.GetStream());
             using var writer = new StreamWriter(tcpClient.GetStream()) { AutoFlush = true };
 
-            string line;
+            string? line;
 
-            while ((line = await reader.ReadLineAsync()) != null)
+            while ((line = await reader.ReadLineAsync()) is not null)
             {
                 var splitLine = line.Split(' ', 2);
                 var commandStr = splitLine[0].ToUpper().Trim();
@@ -93,17 +93,17 @@ namespace Phrenapates.Services.Irc
             listener.Stop();
         }
 
-        private async Task<string> HandleNick(string parameters) // welcomes
+        private Task<string> HandleNick(string parameters) // welcomes
         {
-            return new Reply()
+            return Task.FromResult(new Reply()
             {
                 Prefix = "server",
                 ReplyCode = ReplyCode.RPL_WELCOME,
                 Trailing = "Welcome, Sensei."
-            }.ToString();
+            }.ToString());
         }
 
-        private async Task HandleUser(string parameters, TcpClient client, StreamWriter writer) // sends over account server id
+        private Task HandleUser(string parameters, TcpClient client, StreamWriter writer)
         {
             string[] args = parameters.Split(' ');
             var user_serverId = long.Parse(args[0].Split("_")[1]);
@@ -115,18 +115,22 @@ namespace Phrenapates.Services.Irc
                 TcpClient = client,
                 StreamWriter = writer,
                 ExcelTableService = excelTableService,
+                CurrentChannel = string.Empty
             };
 
             logger.LogDebug($"User {user_serverId} logged in");
+            
+            return Task.CompletedTask;
         }
 
-        private async Task HandleJoin(string parameters, TcpClient client) // sends over channel id
+        private Task HandleJoin(string parameters, TcpClient client)
         {
             var channel = parameters;
 
-            if (!channels.ContainsKey(channel))
+            if (!channels.TryGetValue(channel, out var channelUsers))
             {
-                channels[channel] = new List<long>();
+                channelUsers = [];
+                channels[channel] = channelUsers;
             }
 
             var connection = clients[client];
@@ -140,53 +144,55 @@ namespace Phrenapates.Services.Irc
             connection.SendChatMessage("Welcome, Sensei.");
             connection.SendChatMessage("Type /help for more information.");
             connection.SendEmote(2);
+
+            return Task.CompletedTask;
         }
 
-        private async Task HandlePrivMsg(string parameters, TcpClient client) // player sends msg
+        private Task HandlePrivMsg(string parameters, TcpClient client)
         {
             string[] args = parameters.Split(' ', 2);
 
             var channel = args[0];
             var payloadStr = args[1].TrimStart(':');
 
-            //logger.LogDebug("payload: " + payloadStr);
-
-            var payload = JsonSerializer.Deserialize(payloadStr, typeof(IrcMessage)) as IrcMessage;
+            var payload = JsonSerializer.Deserialize<IrcMessage>(payloadStr);
             
-            if (payload.Text.StartsWith('/'))
+            if (!(payload?.Text?.StartsWith('/') ?? false))
             {
-                var cmdStrings = payload.Text.Split(" ");
-                var connection = clients[client];
-
-                var cmdStr = cmdStrings.First().Split('/').Last();
-
-                try
-                {
-                    Command? cmd = CommandFactory.CreateCommand(cmdStr, connection, cmdStrings[1..]);
-
-
-                    if (cmd is null)
-                    {
-                        connection.SendChatMessage($"Invalid command {cmdStr}, try /help");
-                        return;
-                    }
-
-                    cmd?.Execute();
-                    connection.SendChatMessage($"Command {cmdStr} executed sucessfully! Please relog for it to take effect.");
-                }
-                catch (Exception ex)
-                {
-                    var cmdAtr = (CommandHandlerAttribute?)Attribute.GetCustomAttribute(CommandFactory.commands[cmdStr], typeof(CommandHandlerAttribute));
-
-                    connection.SendChatMessage($"Command {cmdStr} failed to execute!, " + ex.Message);
-                    connection.SendChatMessage($"Usage: {cmdAtr.Usage}");
-                }
+                return Task.CompletedTask;
             }
+
+            var cmdStrings = payload.Text.Split(" ");
+            var connection = clients[client];
+            var cmdStr = cmdStrings.First().Split('/').Last();
+
+            try
+            {
+                Command? cmd = CommandFactory.CreateCommand(cmdStr, connection, cmdStrings[1..]);
+
+                if (cmd is null)
+                {
+                    connection.SendChatMessage($"Invalid command {cmdStr}, try /help");
+                    return Task.CompletedTask;
+                }
+
+                cmd.Execute();
+                connection.SendChatMessage($"Command {cmdStr} executed sucessfully! Please relog for it to take effect.");
+            }
+            catch (Exception ex)
+            {
+                var cmdAtr = (CommandHandlerAttribute?)Attribute.GetCustomAttribute(CommandFactory.commands[cmdStr], typeof(CommandHandlerAttribute));
+
+                connection.SendChatMessage($"Command {cmdStr} failed to execute!, " + ex.Message);
+                connection.SendChatMessage($"Usage: {cmdAtr?.Usage}");
+            }
+
+            return Task.CompletedTask;
         }
 
-        private async Task<string> HandlePing(string parameters)
+        private Task<string> HandlePing(string parameters)
         {
-            return new Reply().ToString();
+            return Task.FromResult(new Reply().ToString());
         }
     }
 
@@ -221,13 +227,13 @@ namespace Phrenapates.Services.Irc
         public long CharacterId { get; set; }
 
         [JsonPropertyName("AccountNickname")]
-        public string AccountNickname { get; set; }
+        public required string AccountNickname { get; set; }
 
         [JsonPropertyName("StickerId")]
         public long StickerId { get; set; }
 
         [JsonPropertyName("Text")]
-        public string Text { get; set; }
+        public required string Text { get; set; }
 
         [JsonPropertyName("SendTicks")]
         public long SendTicks { get; set; }

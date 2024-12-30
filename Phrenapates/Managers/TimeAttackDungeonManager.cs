@@ -10,7 +10,7 @@ namespace Phrenapates.Managers
 {
     public class TimeAttackDungeonManager : Singleton<TimeAttackDungeonManager>
     {
-        public Dictionary<long, TimeAttackDungeonRoomDB> TimeAttackDungeonRooms { get; private set; }
+        public Dictionary<long, TimeAttackDungeonRoomDB> TimeAttackDungeonRooms { get; private set; } = [];
         public List<TimeAttackDungeonBattleHistoryDB> TimeAttackDungeonBattleHistoryDBs { get; private set; } = [];
         
         // Track boss data and time.
@@ -19,7 +19,7 @@ namespace Phrenapates.Managers
         
         public DateTime CreateServerTime(TimeAttackDungeonSeasonManageExcelT targetSeason, ContentInfo contentInfo)
         {
-            if (OverrideServerTimeTicks == null || SeasonId != contentInfo.TimeAttackDungeonDataInfo.SeasonId)
+            if (OverrideServerTimeTicks == default || SeasonId != contentInfo.TimeAttackDungeonDataInfo.SeasonId)
             {
                 OverrideServerTimeTicks = DateTime.Parse(targetSeason.StartDate);
                 SeasonId = contentInfo.TimeAttackDungeonDataInfo.SeasonId;
@@ -31,7 +31,7 @@ namespace Phrenapates.Managers
         public Dictionary<long, TimeAttackDungeonRoomDB> GetLobby() => TimeAttackDungeonRooms;
         public TimeAttackDungeonRoomDB GetRoom() => TimeAttackDungeonRooms[1];
 
-        public TimeAttackDungeonRoomDB GetPreviousRoom()
+        public TimeAttackDungeonRoomDB? GetPreviousRoom()
         {
             if (TimeAttackDungeonBattleHistoryDBs.Count == 3)
             {
@@ -107,8 +107,8 @@ namespace Phrenapates.Managers
         {
             var tempData = TimeAttackDungeonRooms[1];
             tempData.RewardDate = OverrideServerTimeTicks;
-            TimeAttackDungeonRooms = null;
-            TimeAttackDungeonBattleHistoryDBs = new List<TimeAttackDungeonBattleHistoryDB>();
+            TimeAttackDungeonRooms = null!;
+            TimeAttackDungeonBattleHistoryDBs = [];
 
             return tempData;
         }

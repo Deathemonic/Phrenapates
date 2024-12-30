@@ -9,6 +9,7 @@ using Phrenapates.Services.Irc;
 using Phrenapates.Utils;
 using Serilog;
 using Serilog.Events;
+using Phrenapates.Services.Terminal;
 
 namespace Phrenapates
 {
@@ -84,6 +85,7 @@ namespace Phrenapates
                 builder.Services.AddExcelTableService();
                 builder.Services.AddIrcService();
                 builder.Services.AddSharedDataCache();
+                builder.Services.AddTerminalCommandHandler();
 
                 // Add all Handler Groups
                 var handlerGroups = Assembly

@@ -17,9 +17,10 @@ namespace Phrenapates.Services.Irc
 
         public long AccountServerId { get; set; }
 
-        public string CurrentChannel {  get; set; }
+        public required string CurrentChannel {  get; set; }
 
-        public AccountDB Account { get => Context.Accounts.FirstOrDefault(x => x.ServerId == AccountServerId); }
+        public AccountDB? Account => Context.Accounts.FirstOrDefault(x => x.ServerId == AccountServerId);
+
 
         public void SendChatMessage(string text)
         {
@@ -33,6 +34,12 @@ namespace Phrenapates.Services.Irc
 
         public void SendChatMessage(string text, string nickname, long pfpCharacterId, long stickerId, IrcMessageType messageType)
         {
+            if (TcpClient == null)
+            {
+                StreamWriter.WriteLine(text);
+                return;
+            }
+
             var reply = new Reply()
             {
                 Prefix = "mx_admin_bot!admin@netadmin.example.com",
